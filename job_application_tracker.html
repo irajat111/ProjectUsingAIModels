@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Job Application Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F4EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1C2B33;
+    --ink-soft:#5B6B71;
+    --line:#E3DDD0;
+    --teal:#2F6F63;
+    --teal-bg:#E7F0EC;
+    --amber:#C98A3D;
+    --amber-bg:#FBF0DF;
+    --green:#3D8361;
+    --green-bg:#E9F3EC;
+    --red:#B5484D;
+    --red-bg:#F8EBE9;
+    --grey:#8B8878;
+    --grey-bg:#EFEDE5;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width:920px;
+    margin:0 auto;
+    padding:32px 20px 80px;
+  }
+  header.top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  header.top h1{
+    font-family:'Lora',serif;
+    font-weight:700;
+    font-size:2rem;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  header.top p{
+    margin:4px 0 0;
+    color:var(--ink-soft);
+    font-size:0.95rem;
+  }
+  .add-btn{
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    padding:12px 20px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:0.95rem;
+    cursor:pointer;
+    border-radius:3px;
+    transition:background 0.15s ease;
+    white-space:nowrap;
+  }
+  .add-btn:hover{background:#33454E;}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-bottom:24px;
+  }
+  .stat{
+    background:var(--paper-raised);
+    padding:16px 18px;
+  }
+  .stat .num{
+    font-family:'Lora',serif;
+    font-weight:700;
+    font-size:1.7rem;
+    line-height:1;
+  }
+  .stat .label{
+    color:var(--ink-soft);
+    font-size:0.8rem;
+    margin-top:6px;
+  }
+
+  .followup-alert{
+    border:1px solid var(--amber);
+    background:var(--amber-bg);
+    border-radius:4px;
+    padding:14px 18px;
+    margin-bottom:24px;
+    display:none;
+  }
+  .followup-alert.show{display:block;}
+  .followup-alert h3{
+    margin:0 0 8px;
+    font-family:'Lora',serif;
+    font-size:1.05rem;
+    color:#8A5A20;
+  }
+  .followup-list{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .followup-item{
+    display:flex;
+    justify-content:space-between;
+    font-size:0.9rem;
+    color:var(--ink);
+    cursor:pointer;
+    padding:4px 0;
+  }
+  .followup-item:hover{text-decoration:underline;}
+  .followup-item .fdate{
+    color:#8A5A20;
+    font-weight:600;
+  }
+
+  .toolbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .search-input{
+    flex:1;
+    min-width:180px;
+    padding:9px 12px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    font-family:'Inter',sans-serif;
+    font-size:0.9rem;
+    background:var(--paper-raised);
+  }
+  .search-input:focus{outline:2px solid var(--teal);outline-offset:-1px;}
+
+  .tabs{
+    display:flex;
+    gap:4px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:18px;
+    overflow-x:auto;
+  }
+  .tab{
+    padding:10px 14px;
+    font-size:0.88rem;
+    font-weight:600;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    white-space:nowrap;
+    background:none;
+    border-top:none;
+    border-left:none;
+    border-right:none;
+    font-family:'Inter',sans-serif;
+  }
+  .tab.active{
+    color:var(--ink);
+    border-bottom-color:var(--ink);
+  }
+  .tab .count{
+    color:var(--ink-soft);
+    font-weight:500;
+    margin-left:3px;
+  }
+
+  .cards{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:4px solid var(--grey);
+    border-radius:3px;
+    padding:14px 16px;
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:flex-start;
+    cursor:pointer;
+    transition:box-shadow 0.15s ease, transform 0.1s ease;
+  }
+  .card:hover{
+    box-shadow:0 2px 10px rgba(28,43,51,0.08);
+  }
+  .card.st-applied{border-left-color:var(--grey);}
+  .card.st-interviewing{border-left-color:var(--teal);}
+  .card.st-offer{border-left-color:var(--green);}
+  .card.st-rejected{border-left-color:var(--red);}
+  .card.st-ghosted{border-left-color:var(--grey);opacity:0.75;}
+
+  .card-main{flex:1;min-width:0;}
+  .card-main .role{
+    font-family:'Lora',serif;
+    font-weight:600;
+    font-size:1.05rem;
+    margin:0 0 2px;
+  }
+  .card-main .company{
+    color:var(--ink-soft);
+    font-size:0.9rem;
+    margin:0 0 8px;
+  }
+  .card-meta{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+  }
+  .card-meta span{display:inline-flex;align-items:center;gap:4px;}
+
+  .card-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .pill{
+    font-size:0.75rem;
+    font-weight:700;
+    padding:4px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+  }
+  .pill.st-applied{background:var(--grey-bg);color:var(--grey);}
+  .pill.st-interviewing{background:var(--teal-bg);color:var(--teal);}
+  .pill.st-offer{background:var(--green-bg);color:var(--green);}
+  .pill.st-rejected{background:var(--red-bg);color:var(--red);}
+  .pill.st-ghosted{background:var(--grey-bg);color:var(--grey);}
+
+  .fu-badge{
+    font-size:0.75rem;
+    font-weight:600;
+    color:var(--amber);
+  }
+  .fu-badge.overdue{color:var(--red);}
+
+  .empty{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ink-soft);
+  }
+  .empty h3{
+    font-family:'Lora',serif;
+    color:var(--ink);
+    font-size:1.3rem;
+    margin-bottom:8px;
+  }
+
+  /* Modal */
+  .overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(28,43,51,0.45);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 16px;
+    overflow-y:auto;
+    z-index:100;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--paper-raised);
+    border-radius:6px;
+    width:100%;
+    max-width:520px;
+    padding:28px;
+    box-shadow:0 12px 40px rgba(0,0,0,0.2);
+  }
+  .modal h2{
+    font-family:'Lora',serif;
+    margin:0 0 20px;
+    font-size:1.4rem;
+  }
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:0.82rem;
+    font-weight:600;
+    margin-bottom:5px;
+    color:var(--ink-soft);
+  }
+  .field input, .field select, .field textarea{
+    width:100%;
+    padding:9px 11px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    font-family:'Inter',sans-serif;
+    font-size:0.92rem;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  .field textarea{resize:vertical;min-height:60px;}
+  .field-row{display:flex;gap:12px;}
+  .field-row .field{flex:1;}
+  .modal-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:22px;
+    gap:10px;
+  }
+  .btn{
+    padding:10px 18px;
+    border-radius:3px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:0.9rem;
+    cursor:pointer;
+    border:1px solid var(--line);
+    background:var(--paper-raised);
+    color:var(--ink);
+  }
+  .btn.primary{
+    background:var(--ink);
+    color:var(--paper);
+    border-color:var(--ink);
+  }
+  .btn.danger{
+    color:var(--red);
+    border-color:var(--red-bg);
+    background:var(--red-bg);
+  }
+  .btn:hover{opacity:0.88;}
+  .modal-footer-left{display:flex;gap:8px;}
+
+  .loading{
+    text-align:center;
+    padding:60px;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:600px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .card{flex-direction:column;}
+    .card-right{flex-direction:row;align-items:center;width:100%;justify-content:space-between;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Ledger</h1>
+      <p>Every application, where it stands, and what's next.</p>
+    </div>
+    <button class="add-btn" id="openAddBtn">+ Add application</button>
+  </header>
+
+  <div class="stats" id="statsBar"></div>
+
+  <div class="followup-alert" id="followupAlert">
+    <h3 id="followupTitle">Needs follow-up</h3>
+    <div class="followup-list" id="followupList"></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" class="search-input" id="searchInput" placeholder="Search by company or role…">
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div id="cardsContainer">
+    <div class="loading">Loading your applications…</div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add application</h2>
+    <form id="appForm">
+      <div class="field">
+        <label for="f-company">Company</label>
+        <input type="text" id="f-company" required placeholder="e.g. Northwind Labs">
+      </div>
+      <div class="field">
+        <label for="f-role">Role</label>
+        <input type="text" id="f-role" required placeholder="e.g. Frontend Engineer">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-date">Date applied</label>
+          <input type="date" id="f-date" required>
+        </div>
+        <div class="field">
+          <label for="f-status">Status</label>
+          <select id="f-status">
+            <option value="applied">Applied</option>
+            <option value="interviewing">Interviewing</option>
+            <option value="offer">Offer</option>
+            <option value="rejected">Rejected</option>
+            <option value="ghosted">Ghosted</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-followup">Follow-up date <span style="font-weight:400;">(optional)</span></label>
+          <input type="date" id="f-followup">
+        </div>
+        <div class="field">
+          <label for="f-salary">Salary / range <span style="font-weight:400;">(optional)</span></label>
+          <input type="text" id="f-salary" placeholder="e.g. $90k–$110k">
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-link">Job posting link <span style="font-weight:400;">(optional)</span></label>
+        <input type="url" id="f-link" placeholder="https://…">
+      </div>
+      <div class="field">
+        <label for="f-notes">Notes</label>
+        <textarea id="f-notes" placeholder="Referral name, interview prep, recruiter contact…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <div class="modal-footer-left">
+          <button type="button" class="btn danger" id="deleteBtn" style="display:none;">Delete</button>
+        </div>
+        <div class="modal-footer-left">
+          <button type="button" class="btn" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn primary" id="saveBtn">Save</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'applications';
+let applications = [];
+let editingId = null;
+let activeTab = 'all';
+
+const statusLabels = {
+  applied: 'Applied',
+  interviewing: 'Interviewing',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  ghosted: 'Ghosted'
+};
+
+function uid(){
+  return 'app_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+function todayStr(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function formatDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+function daysBetween(a,b){
+  const MS = 1000*60*60*24;
+  return Math.round((new Date(b) - new Date(a)) / MS);
+}
+
+async function loadApplications(){
+  try{
+    const result = await window.storage.get(STORAGE_KEY, false);
+    applications = result ? JSON.parse(result.value) : [];
+  }catch(e){
+    applications = [];
+  }
+  render();
+}
+
+async function saveApplications(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(applications), false);
+  }catch(e){
+    console.error('Storage error', e);
+    alert('Could not save. Your change may not persist.');
+  }
+}
+
+function render(){
+  renderStats();
+  renderFollowups();
+  renderTabs();
+  renderCards();
+}
+
+function renderStats(){
+  const total = applications.length;
+  const active = applications.filter(a => a.status === 'applied' || a.status === 'interviewing').length;
+  const interviews = applications.filter(a => a.status === 'interviewing').length;
+  const responded = applications.filter(a => a.status !== 'applied').length;
+  const rate = total ? Math.round((responded/total)*100) : 0;
+
+  const stats = [
+    { num: total, label: 'Total applications' },
+    { num: active, label: 'Active' },
+    { num: interviews, label: 'Interviewing' },
+    { num: total ? rate + '%' : '—', label: 'Response rate' }
+  ];
+
+  document.getElementById('statsBar').innerHTML = stats.map(s =>
+    `<div class="stat"><div class="num">${s.num}</div><div class="label">${s.label}</div></div>`
+  ).join('');
+}
+
+function renderFollowups(){
+  const today = todayStr();
+  const due = applications.filter(a =>
+    a.followup && a.followup <= today && a.status !== 'offer' && a.status !== 'rejected'
+  ).sort((a,b) => a.followup.localeCompare(b.followup));
+
+  const alertEl = document.getElementById('followupAlert');
+  if(due.length === 0){
+    alertEl.classList.remove('show');
+    return;
+  }
+  alertEl.classList.add('show');
+  document.getElementById('followupTitle').textContent =
+    due.length === 1 ? 'Needs follow-up' : `${due.length} applications need follow-up`;
+
+  document.getElementById('followupList').innerHTML = due.map(a => {
+    const overdue = a.followup < today;
+    const label = overdue
+      ? `Overdue by ${daysBetween(a.followup, today)}d`
+      : 'Due today';
+    return `<div class="followup-item" data-id="${a.id}">
+      <span>${escapeHtml(a.company)} — ${escapeHtml(a.role)}</span>
+      <span class="fdate">${label}</span>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.followup-item').forEach(el => {
+    el.addEventListener('click', () => openEdit(el.dataset.id));
+  });
+}
+
+function renderTabs(){
+  const counts = { all: applications.length };
+  Object.keys(statusLabels).forEach(s => {
+    counts[s] = applications.filter(a => a.status === s).length;
+  });
+
+  const tabsHtml = [`<button class="tab ${activeTab==='all'?'active':''}" data-tab="all">All <span class="count">${counts.all}</span></button>`]
+    .concat(Object.keys(statusLabels).map(s =>
+      `<button class="tab ${activeTab===s?'active':''}" data-tab="${s}">${statusLabels[s]} <span class="count">${counts[s]}</span></button>`
+    )).join('');
+
+  document.getElementById('tabs').innerHTML = tabsHtml;
+  document.querySelectorAll('.tab').forEach(el => {
+    el.addEventListener('click', () => {
+      activeTab = el.dataset.tab;
+      renderTabs();
+      renderCards();
+    });
+  });
+}
+
+function renderCards(){
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  let list = applications.filter(a => {
+    const matchesTab = activeTab === 'all' || a.status === activeTab;
+    const matchesQuery = !query ||
+      a.company.toLowerCase().includes(query) ||
+      a.role.toLowerCase().includes(query);
+    return matchesTab && matchesQuery;
+  });
+
+  list = list.slice().sort((a,b) => b.date.localeCompare(a.date));
+
+  const container = document.getElementById('cardsContainer');
+
+  if(applications.length === 0){
+    container.innerHTML = `<div class="empty">
+      <h3>Nothing tracked yet</h3>
+      <p>Add your first application to start keeping tabs on where things stand.</p>
+    </div>`;
+    return;
+  }
+
+  if(list.length === 0){
+    container.innerHTML = `<div class="empty">
+      <h3>No matches</h3>
+      <p>Try a different search or tab.</p>
+    </div>`;
+    return;
+  }
+
+  const today = todayStr();
+
+  container.innerHTML = `<div class="cards">${list.map(a => {
+    const overdue = a.followup && a.followup <= today && a.status !== 'offer' && a.status !== 'rejected';
+    const fuBadge = a.followup
+      ? `<span class="fu-badge ${overdue ? 'overdue' : ''}">Follow up ${formatDate(a.followup)}</span>`
+      : '';
+    return `<div class="card st-${a.status}" data-id="${a.id}">
+      <div class="card-main">
+        <p class="role">${escapeHtml(a.role)}</p>
+        <p class="company">${escapeHtml(a.company)}</p>
+        <div class="card-meta">
+          <span>Applied ${formatDate(a.date)}</span>
+          ${a.salary ? `<span>${escapeHtml(a.salary)}</span>` : ''}
+          ${a.link ? `<span><a href="${escapeAttr(a.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Posting ↗</a></span>` : ''}
+        </div>
+      </div>
+      <div class="card-right">
+        <span class="pill st-${a.status}">${statusLabels[a.status]}</span>
+        ${fuBadge}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+
+  document.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('click', () => openEdit(el.dataset.id));
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+function escapeAttr(str){
+  return (str||'').replace(/"/g,'&quot;');
+}
+
+function openAdd(){
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Add application';
+  document.getElementById('appForm').reset();
+  document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-status').value = 'applied';
+  document.getElementById('deleteBtn').style.display = 'none';
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('f-company').focus();
+}
+
+function openEdit(id){
+  const app = applications.find(a => a.id === id);
+  if(!app) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Edit application';
+  document.getElementById('f-company').value = app.company;
+  document.getElementById('f-role').value = app.role;
+  document.getElementById('f-date').value = app.date;
+  document.getElementById('f-status').value = app.status;
+  document.getElementById('f-followup').value = app.followup || '';
+  document.getElementById('f-salary').value = app.salary || '';
+  document.getElementById('f-link').value = app.link || '';
+  document.getElementById('f-notes').value = app.notes || '';
+  document.getElementById('deleteBtn').style.display = 'inline-block';
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+  editingId = null;
+}
+
+document.getElementById('openAddBtn').addEventListener('click', openAdd);
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'overlay') closeModal();
+});
+
+document.getElementById('appForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = {
+    company: document.getElementById('f-company').value.trim(),
+    role: document.getElementById('f-role').value.trim(),
+    date: document.getElementById('f-date').value,
+    status: document.getElementById('f-status').value,
+    followup: document.getElementById('f-followup').value || null,
+    salary: document.getElementById('f-salary').value.trim(),
+    link: document.getElementById('f-link').value.trim(),
+    notes: document.getElementById('f-notes').value.trim()
+  };
+
+  if(editingId){
+    const idx = applications.findIndex(a => a.id === editingId);
+    if(idx > -1) applications[idx] = { ...applications[idx], ...data };
+  } else {
+    applications.push({ id: uid(), ...data });
+  }
+
+  await saveApplications();
+  closeModal();
+  render();
+});
+
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  if(!editingId) return;
+  if(!confirm('Delete this application? This can\'t be undone.')) return;
+  applications = applications.filter(a => a.id !== editingId);
+  await saveApplications();
+  closeModal();
+  render();
+});
+
+document.getElementById('searchInput').addEventListener('input', renderCards);
+
+loadApplications();
+</script>
+
+</body>
+</html>

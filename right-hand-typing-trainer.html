@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Right Hand Drill — English Typing Practice</title>
+<style>
+  :root{
+    --bg:#12151b;
+    --panel:#1a1f29;
+    --panel-alt:#212836;
+    --line:#2a3140;
+    --text:#ecedf3;
+    --muted:#8891a3;
+    --right:#e8a33d;      /* right-hand accent (amber, keycap-glow) */
+    --right-dim:#4a3c22;
+    --left:#3a4250;       /* left-hand, muted slate */
+    --correct:#6fcf7c;
+    --error:#e85d5d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 64px;
+  }
+  .wrap{width:100%;max-width:760px;}
+
+  header{margin-bottom:20px;}
+  header h1{
+    font-size:1.5rem;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  header h1 span{color:var(--right);}
+  header p{margin:0;color:var(--muted);font-size:0.92rem;line-height:1.5;}
+
+  /* ---------- keyboard diagram ---------- */
+  .kb-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 20px 20px;
+    margin:20px 0;
+  }
+  .kb-legend{
+    display:flex;
+    gap:18px;
+    margin-bottom:14px;
+    font-size:0.8rem;
+    color:var(--muted);
+  }
+  .kb-legend .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:middle;}
+  .dot.right{background:var(--right);}
+  .dot.left{background:var(--left);}
+
+  .kb{display:flex;flex-direction:column;gap:6px;}
+  .kb-row{display:flex;gap:6px;}
+  .key{
+    flex:1;
+    aspect-ratio:1/1;
+    max-width:46px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--left);
+    border-radius:6px;
+    font-size:0.78rem;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    color:#c7cbd6;
+    transition:transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease;
+    user-select:none;
+  }
+  .key.right{background:var(--right-dim);color:var(--right);}
+  .key.space{flex:6;max-width:none;}
+  .key.active{
+    background:var(--right);
+    color:#1a1207;
+    box-shadow:0 0 0 3px rgba(232,163,61,0.25);
+    transform:translateY(1px);
+  }
+  .key.pressed-correct{background:var(--correct);color:#0d1f10;}
+  .key.pressed-wrong{background:var(--error);color:#2a0d0d;}
+
+  /* ---------- controls ---------- */
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .seg{
+    display:flex;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .seg button{
+    background:none;
+    border:none;
+    color:var(--muted);
+    padding:9px 14px;
+    font-size:0.85rem;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .seg button.on{background:var(--right);color:#1a1207;font-weight:600;}
+  .seg button:not(.on):hover{color:var(--text);}
+
+  /* ---------- stats ---------- */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .stat{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+  }
+  .stat .num{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-size:1.4rem;
+    font-weight:600;
+  }
+  .stat .lbl{font-size:0.72rem;color:var(--muted);margin-top:2px;}
+  .stat.time .num{color:var(--right);}
+
+  /* ---------- typing area ---------- */
+  .type-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px 24px;
+    position:relative;
+    cursor:text;
+  }
+  .type-card.blurred::after{
+    content:"Click here and start typing";
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(18,21,27,0.85);
+    color:var(--muted);
+    font-size:0.9rem;
+    border-radius:14px;
+  }
+  .text-display{
+    font-family:ui-monospace,"SF Mono",Consolas,"Liberation Mono",monospace;
+    font-size:1.25rem;
+    line-height:1.9;
+    letter-spacing:0.3px;
+    word-spacing:6px;
+  }
+  .text-display span{color:var(--muted);}
+  .text-display span.correct{color:var(--text);}
+  .text-display span.incorrect{color:var(--error);text-decoration:underline;text-decoration-color:var(--error);}
+  .text-display span.current{
+    color:var(--text);
+    background:var(--right-dim);
+    border-radius:2px;
+    box-shadow:0 0 0 1px var(--right);
+  }
+  #hidden-input{
+    position:absolute;
+    opacity:0;
+    top:0;left:0;
+    width:1px;height:1px;
+  }
+
+  .actions{margin-top:18px;display:flex;gap:10px;align-items:center;}
+  .btn{
+    background:var(--right);
+    color:#1a1207;
+    border:none;
+    border-radius:9px;
+    padding:10px 18px;
+    font-size:0.88rem;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .btn.ghost{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--muted);
+  }
+  .btn:hover{filter:brightness(1.08);}
+
+  /* ---------- results ---------- */
+  .results{
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:24px;
+    margin-top:16px;
+    animation:rise 0.35s ease;
+  }
+  @keyframes rise{
+    from{opacity:0;transform:translateY(8px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+  .results h2{margin:0 0 14px;font-size:1.1rem;}
+  .results .row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:0.92rem;}
+  .results .row:last-of-type{border-bottom:none;}
+  .results .row b{font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .weak{margin-top:14px;font-size:0.85rem;color:var(--muted);}
+  .weak b{color:var(--right);}
+
+  footer{margin-top:28px;color:var(--muted);font-size:0.78rem;line-height:1.6;}
+  footer b{color:var(--text);}
+
+  @media (max-width:480px){
+    .key{font-size:0.65rem;}
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .text-display{font-size:1.05rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Right Hand <span>Drill</span></h1>
+    <p>Improve your typing speed and accuracy using real English words. In "Right Hand Focus" mode, most letters come from Y U I O P · H J K L · N M, with a light mix of left-hand letters so the words stay natural. Fully offline — no internet needed.</p>
+  </header>
+
+  <div class="kb-card">
+    <div class="kb-legend">
+      <span><span class="dot right"></span>Right hand (focus area)</span>
+      <span><span class="dot left"></span>Left hand</span>
+    </div>
+    <div class="kb" id="keyboard"></div>
+  </div>
+
+  <div class="controls">
+    <div class="seg" id="mode-seg">
+      <button data-mode="right" class="on">Right hand focus</button>
+      <button data-mode="full">Full keyboard</button>
+    </div>
+    <div class="seg" id="time-seg">
+      <button data-time="30">30s</button>
+      <button data-time="60" class="on">1m</button>
+      <button data-time="120">2m</button>
+      <button data-time="300">5m</button>
+      <button data-time="600">10m</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat time"><div class="num" id="stat-time">1:00</div><div class="lbl">time left</div></div>
+    <div class="stat"><div class="num" id="stat-wpm">0</div><div class="lbl">WPM</div></div>
+    <div class="stat"><div class="num" id="stat-acc">100%</div><div class="lbl">accuracy</div></div>
+    <div class="stat"><div class="num" id="stat-err">0</div><div class="lbl">errors</div></div>
+  </div>
+
+  <div class="type-card blurred" id="type-card">
+    <div class="text-display" id="text-display"></div>
+    <input id="hidden-input" autocomplete="off" autocapitalize="off" spellcheck="false">
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="restart-btn">Restart</button>
+    <button class="btn ghost" id="focus-btn">Click here to start typing</button>
+  </div>
+
+  <div class="results" id="results" style="display:none;"></div>
+
+  <footer>
+    <b>Tip:</b> Keep your hands on the home row — left hand on A S D F, right hand on J K L ;, both thumbs on space. "Right Hand Focus" mode uses real English words where most letters come from Y U I O P H J K L N M, with an occasional left-hand letter so it still feels natural — just keep your attention on the right hand. Once that feels comfortable, check your overall accuracy in "Full keyboard" mode. The 5m/10m sessions are great for longer practice and getting a true WPM reading.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  // ---------------- keyboard layout ----------------
+  const rows = [
+    {offset:0,   keys:[['`','left'],['1','left'],['2','left'],['3','left'],['4','left'],['5','left'],['6','right'],['7','right'],['8','right'],['9','right'],['0','right'],['-','right'],['=','right']]},
+    {offset:24,  keys:[['q','left'],['w','left'],['e','left'],['r','left'],['t','left'],['y','right'],['u','right'],['i','right'],['o','right'],['p','right']]},
+    {offset:36,  keys:[['a','left'],['s','left'],['d','left'],['f','left'],['g','left'],['h','right'],['j','right'],['k','right'],['l','right'],[';','right']]},
+    {offset:54,  keys:[['z','left'],['x','left'],['c','left'],['v','left'],['b','left'],['n','right'],['m','right'],[',','right'],['.','right'],['/','right']]},
+  ];
+
+  const kb = document.getElementById('keyboard');
+  const keyEls = {};
+  rows.forEach(r=>{
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'kb-row';
+    if(r.offset) rowDiv.style.marginLeft = r.offset + 'px';
+    r.keys.forEach(([ch,hand])=>{
+      const k = document.createElement('div');
+      k.className = 'key ' + hand;
+      k.textContent = ch;
+      rowDiv.appendChild(k);
+      keyEls[ch] = k;
+    });
+    kb.appendChild(rowDiv);
+  });
+  const spaceRow = document.createElement('div');
+  spaceRow.className = 'kb-row';
+  spaceRow.style.marginLeft = '90px';
+  const spaceKey = document.createElement('div');
+  spaceKey.className = 'key space';
+  spaceKey.textContent = 'space';
+  spaceRow.appendChild(spaceKey);
+  kb.appendChild(spaceRow);
+  keyEls[' '] = spaceKey;
+
+  // ---------------- word banks ----------------
+  // Pure right-hand words (100% right-hand letters) — always included in right-focus mode
+  const PURE_RIGHT_WORDS = ["hi","in","on","up","him","hip","hop","ink","ilk","imp","ion","joy",
+    "kiln","kin","limp","link","lion","lip","look","loom","loon","loop","loyal","lull",
+    "lump","lynx","milk","mill","mink","moon","mop","mull","mum","nil","nook","noon","nun",
+    "only","oomph","opium","pink","plum","poll","pony","pool","pull","pump","punk","pupil",
+    "yolk","you","yum","hookup","unhip","uphill","phony","minion","opinion","million",
+    "monopoly","jolly","holly","kinky","jimmy","hilly","hippo","unholy","unlink","pinup",
+    "junk","hunk","kimono","union","hymn","holy","onion","limn","noun","polo"];
+
+  // Large common-English-word corpus used for both modes
+  const COMMON_WORDS = ["the","quick","brown","fox","jumps","over","lazy","dog","time","world",
+    "water","light","great","small","every","after","again","never","under","system","market",
+    "record","change","matter","reason","family","friend","school","garden","travel","story",
+    "music","planet","forest","bridge","castle","desert","window","kitchen","morning","evening",
+    "weather","country","village","freedom","history","science","project","teacher","student",
+    "doctor","farmer","driver","letter","number","answer","question","picture","language",
+    "because","between","him","his","hip","milk","pink","plum","link","limp","lion","onion",
+    "opinion","million","monkey","monopoly","kilo","polio","holiday","holy","only","piano",
+    "moon","noon","pupil","minion","kimono","hookup","phony","junk","pump","mumbling","yummy",
+    "lucky","monkeys","pinky","impish","hilly","milky","nimbly","unholy","up",
+    "in","him","hymn","month","monthly","mommy","poppy","lily","holly","folly","jolly",
+    "kiln","kilogram","onion","million","opium","nylon","imp","limp","limpid","kinship",
+    "kinship","phoenix","phonology","pinkish","pumpkin","hoopla","hookah","monopoly",
+    "book","cook","look","hood","food","good","wood","foot","hoop","noon","moon","mood",
+    "pool","cool","tool","fool","room","broom","bloom","gloom","hobby","lobby","muddy",
+    "puppy","happy","hobby","poppy","mommy","mummy","funny","bunny","kinky","kidney",
+    "kimono","monkeypox","opinionated","pantomime","phonemic","limnology","hummingbird",
+    "unlink","unholy","hilltop","hilltop","hookworm","pinup","kingpin","kinfolk","milkman",
+    "millpond","moonlit","moonlight","hooligan","impolite","pumpkin","onslaught","piglet",
+    "juniper","jukebox","jumbo","junkyard","monopoly","hyphen","python","pylon","polygon",
+    "polymer","pigment","pilgrim","pinpoint","pinnacle","pinion","phoneme","philosophy",
+    "photon","photograph","photocopy","hologram","holiday","hominy","hominid","homily",
+    "amino","alkyl","kimchi","kinship","limbo","limousine","liminal","limoncello",
+    "and","for","with","this","that","from","have","not","are","was","were","been","being",
+    "will","would","could","should","about","which","their","there","where","when","what",
+    "who","how","why","can","just","also","more","most","some","such","only","own","same",
+    "than","then","them","these","those","very","into","onto","upon"];
+
+  // ---------------- state ----------------
+  let mode = 'right';
+  let duration = 60;
+  let target = "";
+  let typed = "";
+  let running = false;
+  let timeLeft = duration;
+  let timer = null;
+  let errorCount = 0;
+  let totalKeystrokes = 0;
+  let correctKeystrokes = 0;
+  let charErrorMap = {};
+
+  const textDisplay = document.getElementById('text-display');
+  const hiddenInput = document.getElementById('hidden-input');
+  const typeCard = document.getElementById('type-card');
+  const resultsBox = document.getElementById('results');
+
+  const RIGHT_LETTERS = new Set(['y','u','i','o','p','h','j','k','l','n','m']);
+
+  function rightRatio(word){
+    const letters = word.toLowerCase().split('').filter(c=>/[a-z]/.test(c));
+    if(!letters.length) return 0;
+    const rightCount = letters.filter(c=>RIGHT_LETTERS.has(c)).length;
+    return rightCount/letters.length;
+  }
+
+  // Natural words that lean right-hand (>=55% right-hand letters) but still mix in left-hand letters
+  const RIGHT_LEANING_WORDS = COMMON_WORDS.filter(w=>rightRatio(w) >= 0.55);
+  const RIGHT_FOCUS_WORDS = PURE_RIGHT_WORDS.concat(RIGHT_LEANING_WORDS);
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function pickRandomWords(bank, minLength){
+    const words = [];
+    let last = null;
+    while(words.join(' ').length < minLength){
+      const w = bank[Math.floor(Math.random()*bank.length)];
+      if(w === last && bank.length > 1) continue;
+      words.push(w);
+      last = w;
+    }
+    return words.join(' ');
+  }
+
+  function buildTarget(){
+    const bank = mode === 'right' ? RIGHT_FOCUS_WORDS : COMMON_WORDS;
+    target = pickRandomWords(bank, 1400);
+  }
+
+  function renderText(){
+    textDisplay.innerHTML = '';
+    for(let i=0;i<target.length;i++){
+      const s = document.createElement('span');
+      s.textContent = target[i];
+      if(i < typed.length){
+        s.classList.add(typed[i] === target[i] ? 'correct' : 'incorrect');
+      } else if(i === typed.length){
+        s.classList.add('current');
+      }
+      textDisplay.appendChild(s);
+    }
+  }
+
+  function highlightNextKey(){
+    Object.values(keyEls).forEach(k=>k.classList.remove('active'));
+    const nextChar = target[typed.length];
+    if(nextChar && keyEls[nextChar.toLowerCase()]){
+      keyEls[nextChar.toLowerCase()].classList.add('active');
+    }
+  }
+
+  function flashKey(ch, correct){
+    const el = keyEls[ch.toLowerCase()];
+    if(!el) return;
+    el.classList.add(correct ? 'pressed-correct' : 'pressed-wrong');
+    setTimeout(()=>el.classList.remove('pressed-correct','pressed-wrong'), 120);
+  }
+
+  function formatTime(s){
+    if(s < 60) return String(s);
+    const m = Math.floor(s/60);
+    const sec = s%60;
+    return m + ':' + String(sec).padStart(2,'0');
+  }
+
+  function updateStats(){
+    const elapsed = duration - timeLeft;
+    const minutes = Math.max(elapsed,1)/60;
+    const wpm = Math.round((correctKeystrokes/5)/minutes) || 0;
+    const acc = totalKeystrokes ? Math.round((correctKeystrokes/totalKeystrokes)*100) : 100;
+    document.getElementById('stat-time').textContent = formatTime(timeLeft);
+    document.getElementById('stat-wpm').textContent = wpm;
+    document.getElementById('stat-acc').textContent = acc + '%';
+    document.getElementById('stat-err').textContent = errorCount;
+  }
+
+  function startTimerIfNeeded(){
+    if(running) return;
+    running = true;
+    timer = setInterval(()=>{
+      timeLeft--;
+      updateStats();
+      if(timeLeft <= 0){
+        finishTest();
+      }
+    },1000);
+  }
+
+  function finishTest(){
+    clearInterval(timer);
+    running = false;
+    hiddenInput.blur();
+    typeCard.classList.add('blurred');
+    showResults();
+  }
+
+  function showResults(){
+    const elapsed = duration - timeLeft;
+    const minutes = Math.max(elapsed,1)/60;
+    const wpm = Math.round((correctKeystrokes/5)/minutes) || 0;
+    const acc = totalKeystrokes ? Math.round((correctKeystrokes/totalKeystrokes)*100) : 100;
+
+    let weakList = Object.entries(charErrorMap)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,5)
+      .map(([ch,c])=> (ch===' '?'space':ch) + ' (' + c + ')');
+
+    resultsBox.style.display = 'block';
+    resultsBox.innerHTML = `
+      <h2>Results</h2>
+      <div class="row"><span>Speed</span><b>${wpm} WPM</b></div>
+      <div class="row"><span>Accuracy</span><b>${acc}%</b></div>
+      <div class="row"><span>Total keystrokes</span><b>${totalKeystrokes}</b></div>
+      <div class="row"><span>Errors</span><b>${errorCount}</b></div>
+      ${weakList.length ? `<div class="weak">Keys you missed the most: <b>${weakList.join(', ')}</b> — focus on these next time.</div>` : ''}
+    `;
+  }
+
+  function resetTest(){
+    clearInterval(timer);
+    running = false;
+    timeLeft = duration;
+    typed = "";
+    errorCount = 0;
+    totalKeystrokes = 0;
+    correctKeystrokes = 0;
+    charErrorMap = {};
+    hiddenInput.value = "";
+    resultsBox.style.display = 'none';
+    buildTarget();
+    renderText();
+    highlightNextKey();
+    updateStats();
+    typeCard.classList.add('blurred');
+  }
+
+  // ---------------- input handling ----------------
+  hiddenInput.addEventListener('keydown', (e)=>{
+    if(!/^.$/.test(e.key) && e.key !== 'Backspace') return;
+    if(timeLeft <= 0) return;
+
+    if(e.key === 'Backspace'){
+      if(typed.length > 0){
+        typed = typed.slice(0,-1);
+        renderText();
+        highlightNextKey();
+      }
+      e.preventDefault();
+      return;
+    }
+
+    startTimerIfNeeded();
+    const expected = target[typed.length];
+    const isCorrect = e.key === expected;
+    totalKeystrokes++;
+    if(isCorrect){
+      correctKeystrokes++;
+    } else {
+      errorCount++;
+      charErrorMap[expected] = (charErrorMap[expected]||0)+1;
+    }
+    flashKey(e.key, isCorrect);
+    typed += e.key;
+    renderText();
+    highlightNextKey();
+    updateStats();
+
+    if(typed.length >= target.length - 50){
+      target += " " + pickRandomWords(mode==='right'?RIGHT_FOCUS_WORDS:COMMON_WORDS, 400);
+    }
+    e.preventDefault();
+  });
+
+  typeCard.addEventListener('click', ()=>{
+    hiddenInput.focus();
+    typeCard.classList.remove('blurred');
+  });
+  document.getElementById('focus-btn').addEventListener('click', ()=>{
+    hiddenInput.focus();
+    typeCard.classList.remove('blurred');
+  });
+  hiddenInput.addEventListener('blur', ()=>{
+    if(!running && timeLeft === duration) return;
+    if(timeLeft > 0) typeCard.classList.add('blurred');
+  });
+
+  document.getElementById('restart-btn').addEventListener('click', resetTest);
+
+  document.getElementById('mode-seg').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    document.querySelectorAll('#mode-seg button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    mode = btn.dataset.mode;
+    resetTest();
+  });
+
+  document.getElementById('time-seg').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    document.querySelectorAll('#time-seg button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    duration = parseInt(btn.dataset.time,10);
+    resetTest();
+  });
+
+  // ---------------- init ----------------
+  resetTest();
+})();
+</script>
+</body>
+</html>

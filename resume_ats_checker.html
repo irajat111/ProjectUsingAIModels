@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanline — Resume ATS Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg:#F8F7F4;
+    --panel:#FFFFFF;
+    --ink:#1E2A32;
+    --muted:#64717A;
+    --line:#E2DFD6;
+    --accent:#3557A6;
+    --accent-bg:#E8EDF7;
+    --good:#2F7D5B;
+    --good-bg:#E7F3ED;
+    --warn:#C98A3D;
+    --warn-bg:#FBF0DF;
+    --bad:#B5484D;
+    --bad-bg:#F8EBE9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width:960px;
+    margin:0 auto;
+    padding:36px 20px 90px;
+  }
+  header.top{
+    margin-bottom:28px;
+  }
+  header.top h1{
+    font-family:'IBM Plex Serif',serif;
+    font-weight:700;
+    font-size:2rem;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  header.top p{
+    margin:0;
+    color:var(--muted);
+    font-size:0.98rem;
+    max-width:60ch;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-bottom:20px;
+  }
+  @media (max-width:760px){
+    .grid{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:18px;
+  }
+  .panel label{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-weight:600;
+    font-size:0.9rem;
+    margin-bottom:8px;
+  }
+  .panel label .optional{
+    font-weight:400;
+    color:var(--muted);
+    font-size:0.8rem;
+  }
+  textarea{
+    width:100%;
+    min-height:220px;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.82rem;
+    line-height:1.5;
+    resize:vertical;
+    background:#FCFBF9;
+    color:var(--ink);
+  }
+  textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;}
+  .word-count{
+    text-align:right;
+    font-size:0.75rem;
+    color:var(--muted);
+    margin-top:6px;
+  }
+
+  .upload-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+  }
+  .upload-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--accent-bg);
+    color:var(--accent);
+    border:1px solid var(--accent);
+    padding:7px 14px;
+    border-radius:4px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:0.82rem;
+    cursor:pointer;
+  }
+  .upload-btn:hover{background:#DCE4F3;}
+  .upload-btn input{display:none;}
+  .upload-status{
+    font-size:0.78rem;
+    color:var(--muted);
+  }
+  .upload-status.error{color:var(--bad);}
+
+  .scan-row{
+    display:flex;
+    justify-content:center;
+    margin:24px 0 32px;
+  }
+  .scan-btn{
+    background:var(--ink);
+    color:var(--bg);
+    border:none;
+    padding:13px 32px;
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:0.98rem;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .scan-btn:hover:not(:disabled){background:#33454E;}
+  .scan-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+  .results{display:none;}
+  .results.show{display:block;}
+
+  .score-band{
+    display:flex;
+    gap:16px;
+    align-items:center;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:22px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+  }
+  .score-ring{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:2.6rem;
+    font-weight:600;
+    line-height:1;
+    padding:10px 18px;
+    border-radius:6px;
+    min-width:110px;
+    text-align:center;
+  }
+  .score-ring.good{background:var(--good-bg);color:var(--good);}
+  .score-ring.warn{background:var(--warn-bg);color:var(--warn);}
+  .score-ring.bad{background:var(--bad-bg);color:var(--bad);}
+  .score-text h3{
+    font-family:'IBM Plex Serif',serif;
+    margin:0 0 4px;
+    font-size:1.15rem;
+  }
+  .score-text p{
+    margin:0;
+    color:var(--muted);
+    font-size:0.9rem;
+    max-width:50ch;
+  }
+
+  .section-title{
+    font-family:'IBM Plex Serif',serif;
+    font-size:1.15rem;
+    font-weight:600;
+    margin:0 0 12px;
+  }
+
+  .checklist{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 20px;
+    margin-bottom:20px;
+  }
+  .check-item{
+    display:flex;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+    align-items:flex-start;
+  }
+  .check-item:last-child{border-bottom:none;}
+  .check-icon{
+    flex-shrink:0;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:0.75rem;
+    font-weight:700;
+    margin-top:1px;
+  }
+  .check-icon.pass{background:var(--good-bg);color:var(--good);}
+  .check-icon.fail{background:var(--bad-bg);color:var(--bad);}
+  .check-icon.warn{background:var(--warn-bg);color:var(--warn);}
+  .check-body .check-title{
+    font-weight:600;
+    font-size:0.92rem;
+  }
+  .check-body .check-detail{
+    color:var(--muted);
+    font-size:0.85rem;
+    margin-top:2px;
+  }
+
+  .keyword-section{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 20px;
+    margin-bottom:20px;
+  }
+  .keyword-group{margin-bottom:16px;}
+  .keyword-group:last-child{margin-bottom:0;}
+  .keyword-group h4{
+    font-size:0.85rem;
+    font-weight:600;
+    margin:0 0 10px;
+    color:var(--muted);
+  }
+  .chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+  }
+  .chip{
+    font-size:0.8rem;
+    font-weight:600;
+    padding:5px 12px;
+    border-radius:20px;
+  }
+  .chip.matched{background:var(--good-bg);color:var(--good);}
+  .chip.missing{background:var(--bad-bg);color:var(--bad);}
+
+  .suggestions{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 20px;
+  }
+  .suggestion-item{
+    display:flex;
+    gap:12px;
+    padding:12px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .suggestion-item:last-child{border-bottom:none;}
+  .suggestion-num{
+    font-family:'IBM Plex Mono',monospace;
+    color:var(--accent);
+    font-weight:600;
+    flex-shrink:0;
+  }
+  .suggestion-text{font-size:0.92rem;line-height:1.5;}
+
+  .loading-state{
+    text-align:center;
+    padding:30px;
+    color:var(--muted);
+    font-size:0.9rem;
+  }
+  .spinner{
+    width:22px;
+    height:22px;
+    border:2.5px solid var(--line);
+    border-top-color:var(--accent);
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+    margin:0 auto 12px;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .error-box{
+    background:var(--bad-bg);
+    border:1px solid var(--bad);
+    color:var(--bad);
+    padding:14px 16px;
+    border-radius:5px;
+    font-size:0.88rem;
+    margin-bottom:20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Scanline</h1>
+    <p>Paste your resume to check its ATS readability, and optionally add a job description to see exactly which keywords you're missing.</p>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <label for="resumeInput">Your resume <span class="optional">required</span></label>
+      <div class="upload-row">
+        <label class="upload-btn">
+          📄 Upload PDF
+          <input type="file" id="resumePdfInput" accept="application/pdf">
+        </label>
+        <span class="upload-status" id="resumeUploadStatus"></span>
+      </div>
+      <textarea id="resumeInput" placeholder="…or paste the full text of your resume here"></textarea>
+      <div class="word-count" id="resumeWordCount">0 words</div>
+    </div>
+    <div class="panel">
+      <label for="jdInput">Target job description <span class="optional">optional, but recommended</span></label>
+      <div class="upload-row">
+        <label class="upload-btn">
+          📄 Upload PDF
+          <input type="file" id="jdPdfInput" accept="application/pdf">
+        </label>
+        <span class="upload-status" id="jdUploadStatus"></span>
+      </div>
+      <textarea id="jdInput" placeholder="…or paste the job posting text here for keyword-gap analysis"></textarea>
+      <div class="word-count" id="jdWordCount">0 words</div>
+    </div>
+  </div>
+
+  <div class="scan-row">
+    <button class="scan-btn" id="scanBtn">Scan resume</button>
+  </div>
+
+  <div id="errorContainer"></div>
+
+  <div class="results" id="results">
+    <div class="score-band" id="scoreBand"></div>
+
+    <div class="checklist" id="checklist">
+      <div class="section-title">Formatting &amp; structure checklist</div>
+      <div id="checklistItems"></div>
+    </div>
+
+    <div id="keywordArea"></div>
+
+    <div class="suggestions" id="suggestionsBox" style="display:none;">
+      <div class="section-title">Suggestions to improve</div>
+      <div id="suggestionsList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const resumeInput = document.getElementById('resumeInput');
+const jdInput = document.getElementById('jdInput');
+const scanBtn = document.getElementById('scanBtn');
+const results = document.getElementById('results');
+const errorContainer = document.getElementById('errorContainer');
+
+if(window['pdfjsLib']){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function wordCount(text){
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+
+async function extractTextFromPdf(file){
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  for(let i = 1; i <= pdf.numPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n\n';
+  }
+  return fullText.trim();
+}
+
+function setupPdfUpload(inputId, statusId, targetTextarea, countUpdater){
+  const fileInput = document.getElementById(inputId);
+  const statusEl = document.getElementById(statusId);
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if(!file) return;
+
+    statusEl.classList.remove('error');
+    statusEl.textContent = 'Reading ' + file.name + '…';
+
+    try{
+      const text = await extractTextFromPdf(file);
+      if(!text || text.length < 20){
+        throw new Error('empty');
+      }
+      targetTextarea.value = text;
+      countUpdater();
+      statusEl.textContent = 'Loaded ' + file.name + ' (' + wordCount(text) + ' words extracted)';
+    }catch(err){
+      console.error('PDF extraction error:', err);
+      statusEl.classList.add('error');
+      statusEl.textContent = "Couldn't read text from that PDF — it may be a scanned image. Try pasting the text manually instead.";
+    }
+
+    fileInput.value = '';
+  });
+}
+
+function updateResumeCount(){
+  document.getElementById('resumeWordCount').textContent = wordCount(resumeInput.value) + ' words';
+}
+function updateJdCount(){
+  document.getElementById('jdWordCount').textContent = wordCount(jdInput.value) + ' words';
+}
+
+resumeInput.addEventListener('input', updateResumeCount);
+jdInput.addEventListener('input', updateJdCount);
+
+setupPdfUpload('resumePdfInput', 'resumeUploadStatus', resumeInput, updateResumeCount);
+setupPdfUpload('jdPdfInput', 'jdUploadStatus', jdInput, updateJdCount);
+
+const WEAK_STARTERS = [
+  'responsible for', 'duties included', 'worked on', 'helped with',
+  'tasked with', 'in charge of', 'was responsible', 'assisted with'
+];
+
+const EXPECTED_SECTIONS = ['experience', 'education', 'skills'];
+
+function runRuleBasedChecks(text){
+  const lower = text.toLowerCase();
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const words = wordCount(text);
+  const checks = [];
+
+  if(words < 150){
+    checks.push({status:'fail', title:'Resume length', detail:`Only ${words} words — this reads as too thin. Aim for 400–800 words.`});
+  } else if(words > 1100){
+    checks.push({status:'warn', title:'Resume length', detail:`${words} words is on the long side. Most ATS-friendly resumes fit on 1–2 pages (roughly 400–800 words).`});
+  } else {
+    checks.push({status:'pass', title:'Resume length', detail:`${words} words — a reasonable length.`});
+  }
+
+  const hasEmail = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(text);
+  const hasPhone = /(\+?\d[\d\s\-().]{7,}\d)/.test(text);
+  if(hasEmail && hasPhone){
+    checks.push({status:'pass', title:'Contact information', detail:'Email and phone number both detected.'});
+  } else {
+    const missing = [];
+    if(!hasEmail) missing.push('email address');
+    if(!hasPhone) missing.push('phone number');
+    checks.push({status:'fail', title:'Contact information', detail:`Missing ${missing.join(' and ')}. ATS systems and recruiters expect these clearly at the top.`});
+  }
+
+  const missingSections = EXPECTED_SECTIONS.filter(s => !lower.includes(s));
+  if(missingSections.length === 0){
+    checks.push({status:'pass', title:'Standard sections', detail:'Experience, Education, and Skills sections all found.'});
+  } else {
+    checks.push({status:'warn', title:'Standard sections', detail:`Couldn't find a clear "${missingSections.join('", "')}" section header. ATS software relies on standard section titles to parse your resume correctly.`});
+  }
+
+  const bulletLines = lines.filter(l => /^[•\-\*▪●]/.test(l));
+  if(bulletLines.length >= 3){
+    checks.push({status:'pass', title:'Bullet-point formatting', detail:`${bulletLines.length} bullet points detected — good for scannability.`});
+  } else {
+    checks.push({status:'warn', title:'Bullet-point formatting', detail:'Few or no bullet points detected. Dense paragraphs are harder for both ATS parsers and recruiters to scan — use bullets for experience entries.'});
+  }
+
+  const bulletsWithNumbers = bulletLines.filter(l => /\d/.test(l)).length;
+  if(bulletLines.length > 0 && bulletsWithNumbers / bulletLines.length >= 0.3){
+    checks.push({status:'pass', title:'Quantified achievements', detail:`${bulletsWithNumbers} of ${bulletLines.length} bullets include numbers or metrics.`});
+  } else {
+    checks.push({status:'warn', title:'Quantified achievements', detail:'Few bullets include numbers, percentages, or metrics. Quantifying impact ("reduced load time by 40%") is far more persuasive than describing duties.'});
+  }
+
+  const weakHits = WEAK_STARTERS.filter(phrase => lower.includes(phrase));
+  if(weakHits.length === 0){
+    checks.push({status:'pass', title:'Action-oriented language', detail:'No passive filler phrases like "responsible for" detected.'});
+  } else {
+    checks.push({status:'warn', title:'Action-oriented language', detail:`Found passive phrasing: "${weakHits.join('", "')}". Replace with strong action verbs (Led, Built, Reduced, Launched).`});
+  }
+
+  const suspiciousSpacing = /\t{2,}|\s{6,}/.test(text);
+  if(suspiciousSpacing){
+    checks.push({status:'warn', title:'Layout complexity', detail:'Detected unusual spacing patterns, which often means the original resume used tables or multi-column layout. Many ATS parsers scramble these — a single-column layout is safest.'});
+  } else {
+    checks.push({status:'pass', title:'Layout complexity', detail:'No signs of complex tables or multi-column layout in the pasted text.'});
+  }
+
+  return checks;
+}
+
+function scoreFromChecks(checks){
+  const weights = { pass: 1, warn: 0.5, fail: 0 };
+  const total = checks.reduce((sum, c) => sum + weights[c.status], 0);
+  return Math.round((total / checks.length) * 100);
+}
+
+function renderChecklist(checks){
+  const iconMap = { pass: '✓', warn: '!', fail: '✕' };
+  document.getElementById('checklistItems').innerHTML = checks.map(c => `
+    <div class="check-item">
+      <div class="check-icon ${c.status}">${iconMap[c.status]}</div>
+      <div class="check-body">
+        <div class="check-title">${c.title}</div>
+        <div class="check-detail">${c.detail}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function scoreBandClass(score){
+  if(score >= 75) return 'good';
+  if(score >= 50) return 'warn';
+  return 'bad';
+}
+
+function scoreBandMessage(score){
+  if(score >= 75) return 'Solid ATS readability. Minor polish could still help.';
+  if(score >= 50) return 'Workable, but a few structural issues could cause ATS systems to misread parts of your resume.';
+  return 'Several issues detected that commonly cause ATS systems to drop or misparse resume content.';
+}
+
+function renderScoreBand(score, label){
+  document.getElementById('scoreBand').innerHTML = `
+    <div class="score-ring ${scoreBandClass(score)}">${score}</div>
+    <div class="score-text">
+      <h3>${label}</h3>
+      <p>${scoreBandMessage(score)}</p>
+    </div>
+  `;
+}
+
+async function runKeywordAnalysis(resumeText, jdText){
+  const keywordArea = document.getElementById('keywordArea');
+  keywordArea.innerHTML = `
+    <div class="keyword-section">
+      <div class="section-title">Keyword match against job description</div>
+      <div class="loading-state"><div class="spinner"></div>Comparing your resume against the job description…</div>
+    </div>
+  `;
+
+  const prompt = `You are an ATS (Applicant Tracking System) keyword-matching assistant. Compare the RESUME against the JOB DESCRIPTION below.
+
+Return ONLY a raw JSON object (no markdown fences, no preamble) with this exact shape:
+{
+  "matchScore": <integer 0-100, how well the resume's skills/keywords align with the job description>,
+  "matchedKeywords": [<up to 12 important skills/keywords from the JD that ARE present in the resume, as short strings>],
+  "missingKeywords": [<up to 10 important skills/keywords from the JD that are MISSING from the resume, as short strings>],
+  "suggestions": [<up to 5 short, specific, actionable suggestions (one sentence each) for how to revise the resume to better match this job description>]
+}
+
+RESUME:
+"""${resumeText.slice(0, 6000)}"""
+
+JOB DESCRIPTION:
+"""${jdText.slice(0, 4000)}"""`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    if(!response.ok){
+      throw new Error('API request failed with status ' + response.status);
+    }
+
+    const data = await response.json();
+    const textBlock = data.content.find(b => b.type === 'text');
+    if(!textBlock){
+      throw new Error('No text content in response');
+    }
+
+    const cleaned = textBlock.text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    renderKeywordResults(parsed);
+    return parsed;
+  }catch(err){
+    console.error('Keyword analysis error:', err);
+    keywordArea.innerHTML = `
+      <div class="keyword-section">
+        <div class="section-title">Keyword match against job description</div>
+        <div class="error-box">Couldn't complete the keyword comparison right now. The formatting checklist above is still valid — try scanning again in a moment for the keyword match.</div>
+      </div>
+    `;
+    return null;
+  }
+}
+
+function renderKeywordResults(parsed){
+  const keywordArea = document.getElementById('keywordArea');
+  const scoreClass = scoreBandClass(parsed.matchScore);
+
+  keywordArea.innerHTML = `
+    <div class="keyword-section">
+      <div class="section-title">Keyword match against job description</div>
+      <div class="score-band" style="margin-bottom:16px;padding:16px;">
+        <div class="score-ring ${scoreClass}" style="font-size:1.8rem;min-width:80px;padding:6px 12px;">${parsed.matchScore}</div>
+        <div class="score-text">
+          <h3 style="font-size:1rem;">Job match score</h3>
+          <p>How closely your resume's language lines up with this specific posting.</p>
+        </div>
+      </div>
+      <div class="keyword-group">
+        <h4>Keywords found in your resume (${(parsed.matchedKeywords||[]).length})</h4>
+        <div class="chips">
+          ${(parsed.matchedKeywords||[]).map(k => `<span class="chip matched">${escapeHtml(k)}</span>`).join('') || '<span style="color:var(--muted);font-size:0.85rem;">None detected</span>'}
+        </div>
+      </div>
+      <div class="keyword-group">
+        <h4>Keywords missing from your resume (${(parsed.missingKeywords||[]).length})</h4>
+        <div class="chips">
+          ${(parsed.missingKeywords||[]).map(k => `<span class="chip missing">${escapeHtml(k)}</span>`).join('') || '<span style="color:var(--muted);font-size:0.85rem;">None — great coverage</span>'}
+        </div>
+      </div>
+    </div>
+  `;
+
+  if(parsed.suggestions && parsed.suggestions.length){
+    document.getElementById('suggestionsBox').style.display = 'block';
+    document.getElementById('suggestionsList').innerHTML = parsed.suggestions.map((s, i) => `
+      <div class="suggestion-item">
+        <div class="suggestion-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="suggestion-text">${escapeHtml(s)}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+scanBtn.addEventListener('click', async () => {
+  const resumeText = resumeInput.value.trim();
+  const jdText = jdInput.value.trim();
+  errorContainer.innerHTML = '';
+
+  if(!resumeText){
+    errorContainer.innerHTML = '<div class="error-box">Paste your resume text first — there\'s nothing to scan yet.</div>';
+    return;
+  }
+  if(wordCount(resumeText) < 30){
+    errorContainer.innerHTML = '<div class="error-box">That looks too short to be a full resume. Paste the complete text.</div>';
+    return;
+  }
+
+  scanBtn.disabled = true;
+  scanBtn.textContent = 'Scanning…';
+  results.classList.add('show');
+  document.getElementById('suggestionsBox').style.display = 'none';
+  document.getElementById('keywordArea').innerHTML = '';
+
+  const checks = runRuleBasedChecks(resumeText);
+  const score = scoreFromChecks(checks);
+  renderScoreBand(score, 'ATS readability score');
+  renderChecklist(checks);
+
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  if(jdText && wordCount(jdText) >= 15){
+    await runKeywordAnalysis(resumeText, jdText);
+  }
+
+  scanBtn.disabled = false;
+  scanBtn.textContent = 'Scan resume';
+});
+</script>
+
+</body>
+</html>
